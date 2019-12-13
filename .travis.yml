@@ -1,0 +1,17 @@
+language: go
+os: linux
+
+jobs:
+  include:
+  - go: 1.13.x
+    env: GO111MODULE=on
+
+script:
+- make check
+- make build
+- go get github.com/xorcare/miflib.go
+- go get github.com/xorcare/miflib.go/cmd/miflib
+- miflib --help
+
+after_success:
+- bash <(curl -s https://codecov.io/bash)
