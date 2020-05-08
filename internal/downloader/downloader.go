@@ -5,6 +5,7 @@
 package downloader
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +26,7 @@ func init() {
 }
 
 // Downloader type for handlers.
-type Downloader func(path string, book jd.Book) error
+type Downloader func(ctx context.Context, path string, book jd.Book) error
 
 // DownloadHandlers list of handlers used.
 var DownloadHandlers = []Downloader{
@@ -47,9 +48,9 @@ func CheckRedirect(_ *http.Request, via []*http.Request) error {
 }
 
 // Download starting the download mechanism.
-func Download(basepath string, book jd.Book) error {
+func Download(ctx context.Context, basepath string, book jd.Book) error {
 	for _, f := range DownloadHandlers {
-		if err := f(basepath, book); err != nil {
+		if err := f(ctx, basepath, book); err != nil {
 			if er, ok := err.(*url.Error); ok {
 				if er.Err == errStoppedAfterRedirects {
 					log.Println("skip redirect error", err)
@@ -69,7 +70,7 @@ func Download(basepath string, book jd.Book) error {
 	return nil
 }
 
-func downloadAudiobook(basepath string, book jd.Book) error {
+func downloadAudiobook(ctx context.Context, basepath string, book jd.Book) error {
 	log.Println("start download audiobook", book.ID)
 	defer log.Println("finish download audiobook", book.ID)
 	basepath = path.Join(basepath, "audiobook")
@@ -81,7 +82,7 @@ func downloadAudiobook(basepath string, book jd.Book) error {
 			continue
 		}
 		for _, address := range as {
-			if err := downloadByAddress(basepath, key, address, book); err != nil {
+			if err := downloadByAddress(ctx, basepath, key, address, book); err != nil {
 				return err
 			}
 		}
@@ -90,13 +91,13 @@ func downloadAudiobook(basepath string, book jd.Book) error {
 	return nil
 }
 
-func downloadBook(basepath string, book jd.Book) error {
+func downloadBook(ctx context.Context, basepath string, book jd.Book) error {
 	log.Println("start download e-book", book.ID)
 	defer log.Println("finish download e-book", book.ID)
 	basepath = path.Join(basepath, "e-book")
 	for key, as := range book.Files.Books {
 		for _, address := range as {
-			if err := downloadByAddress(basepath, key, address, book); err != nil {
+			if err := downloadByAddress(ctx, basepath, key, address, book); err != nil {
 				return err
 			}
 		}
@@ -105,23 +106,23 @@ func downloadBook(basepath string, book jd.Book) error {
 	return nil
 }
 
-func downloadCover(basepath string, book jd.Book) error {
+func downloadCover(ctx context.Context, basepath string, book jd.Book) error {
 	log.Println("start download cover", book.ID)
 	defer log.Println("finish download cover", book.ID)
-	if err := downloadFileByURL(book.Cover.Large, basepath); err != nil {
+	if err := downloadFileByURL(ctx, book.Cover.Large, basepath); err != nil {
 		return err
 	}
 
-	return downloadFileByURL(book.Cover.Small, basepath)
+	return downloadFileByURL(ctx, book.Cover.Small, basepath)
 }
 
-func downloadDemo(basepath string, book jd.Book) error {
+func downloadDemo(ctx context.Context, basepath string, book jd.Book) error {
 	log.Println("start download demo", book.ID)
 	defer log.Println("finish download demo", book.ID)
 	basepath = path.Join(basepath, "demo")
 	for key, as := range book.Files.Demo {
 		for _, address := range as {
-			if err := downloadByAddress(basepath, key, address, book); err != nil {
+			if err := downloadByAddress(ctx, basepath, key, address, book); err != nil {
 				return err
 			}
 		}
@@ -130,12 +131,12 @@ func downloadDemo(basepath string, book jd.Book) error {
 	return nil
 }
 
-func downloadPhotos(basepath string, book jd.Book) error {
+func downloadPhotos(ctx context.Context, basepath string, book jd.Book) error {
 	log.Println("start download photos", book.ID)
 	defer log.Println("finish download photos", book.ID)
 	basepath = path.Join(basepath, "photos")
 	for _, as := range book.Photos {
-		if err := downloadFileByURL(as.URL, basepath); err != nil {
+		if err := downloadFileByURL(ctx, as.URL, basepath); err != nil {
 			return err
 		}
 	}
@@ -143,20 +144,31 @@ func downloadPhotos(basepath string, book jd.Book) error {
 	return nil
 }
 
-func downloadByAddress(basepath, ext string, ad jd.Address, book jd.Book) error {
+func downloadByAddress(ctx context.Context, basepath, ext string, ad jd.Address, book jd.Book) error {
 	title := ad.Title
 	if title == "" {
 		title = book.Title
 	}
 	msg := fmt.Sprintf("%s.%s", title, ext)
 
-	return downloadFile(ad.URL, path.Join(basepath, ext, msg))
+	return downloadFile(ctx, ad.URL, path.Join(basepath, ext, msg))
 }
 
-func downloadFile(url, filename string) error {
+func downloadFile(ctx context.Context, url, filename string) error {
 	log.Println("start download from url:", url, "to file:", filename)
 	defer log.Println("finish download from url:", url, "to file:", filename)
-	res, err := http.Get(url)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+
+	var done func()
+	ctx, done = context.WithCancel(ctx)
+	defer done()
+
+	req = req.WithContext(ctx)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -182,6 +194,6 @@ func downloadFile(url, filename string) error {
 	return err
 }
 
-func downloadFileByURL(url, basepath string) error {
-	return downloadFile(url, path.Join(basepath, path.Base(url)))
+func downloadFileByURL(ctx context.Context, url, basepath string) error {
+	return downloadFile(ctx, url, path.Join(basepath, path.Base(url)))
 }

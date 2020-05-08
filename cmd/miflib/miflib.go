@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,12 +13,13 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"runtime"
-	"sync"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/net/publicsuffix"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/xorcare/miflib.go/internal/downloader"
 	"github.com/xorcare/miflib.go/internal/jd"
@@ -80,12 +82,11 @@ func main() {
 			EnvVars:  []string{"MIFLIB_HOSTNAME"},
 		},
 		&cli.StringFlag{
-			Name:     "d",
-			Aliases:  []string{"directory"},
-			Usage:    "the directory where books will be placed",
-			Required: true,
-			EnvVars:  []string{"MIFLIB_DIRECTORY"},
-			Value:    ".",
+			Name:    "d",
+			Aliases: []string{"directory"},
+			Usage:   "the directory where books will be placed",
+			EnvVars: []string{"MIFLIB_DIRECTORY"},
+			Value:   ".",
 		},
 		&cli.IntFlag{
 			Name:    "n",
@@ -118,80 +119,119 @@ func action(c *cli.Context) error {
 		return err
 	}
 
-	uri.Path = "books/list.ajax"
-	res, err = http.Get(uri.String())
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if err := downloader.CheckResponse(res); err != nil {
-		return err
-	}
-
-	books := jd.Books{}
-	err = json.NewDecoder(res.Body).Decode(&books)
-	if err != nil {
-		return err
-	}
-
 	ch := make(chan jd.Book)
-	wg := sync.WaitGroup{}
-	wg.Add(c.Int("n"))
+
+	ctx, done := context.WithCancel(context.Background())
+
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(quit, os.Interrupt)
+
+	go func() {
+		<-quit
+		log.Println("miflib is shutting down by os interrupt signal...")
+		done()
+		// You need to completely subtract the channel for successful completion
+		// in the event of an interruption of the program.
+		for range ch {
+		}
+	}()
+
+	wg, ctx := errgroup.WithContext(ctx)
+
 	for i := 0; i < c.Int("n"); i++ {
-		go worker(&wg, ch, c.String("d"))
+		wg.Go(func() error {
+			return worker(ctx, ch, c.String("d"))
+		})
 	}
 
-	for _, book := range books.Books {
-		ch <- book
-	}
+	wg.Go(func() error {
+		defer close(ch)
+		uri.Path = "books/list.ajax"
+		res, err = http.Get(uri.String())
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+		if err := downloader.CheckResponse(res); err != nil {
+			return err
+		}
 
-	close(ch)
-	wg.Wait()
+		books := jd.Books{}
+		err = json.NewDecoder(res.Body).Decode(&books)
+		if err != nil {
+			return err
+		}
+
+		for len(books.Books) > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				ch <- books.Books[0]
+				books.Books = books.Books[1:]
+			}
+		}
+
+		return nil
+	})
+
+	if err := wg.Wait(); err != nil {
+		return err
+	}
 
 	log.Println("correct completion of processing")
 
 	return nil
 }
 
-func worker(wg *sync.WaitGroup, books <-chan jd.Book, basepath string) {
-	defer wg.Done()
-
+func worker(ctx context.Context, books <-chan jd.Book, basepath string) (err error) {
 	for book := range books {
-		log.Println("start processing book:", book.Title, book.ID)
-		func(payload interface{}) {
-			defer log.Println("finish processing book:", book.Title, book.ID)
-			book := payload.(jd.Book)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			log.Println("start processing book:", book.Title, book.ID)
+			err = func(payload interface{}) error {
+				defer log.Println("finish processing book:", book.Title, book.ID)
+				book := payload.(jd.Book)
 
-			basepath = path.Join(basepath, fmt.Sprintf("%05d %s", book.ID, book.Title))
-			if err := os.MkdirAll(basepath, 0755); err != nil {
-				log.Fatal(err)
-			}
+				basepath = path.Join(basepath, fmt.Sprintf("%05d %s", book.ID, book.Title))
+				if err := os.MkdirAll(basepath, 0755); err != nil {
+					return err
+				}
 
-			filepath := path.Join(basepath, "book.json")
+				filepath := path.Join(basepath, "book.json")
 
-			if _, err := os.Stat(filepath); !os.IsNotExist(err) {
-				log.Println("book is already downloaded earlier:", book.Title, book.ID)
-				return
-			}
+				if _, err := os.Stat(filepath); !os.IsNotExist(err) {
+					log.Println("book is already downloaded earlier:", book.Title, book.ID)
+					return nil
+				}
 
-			if err := downloader.Download(basepath, book); err != nil {
-				log.Fatal(err)
-			}
-			file, err := os.Create(filepath)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer file.Close()
+				if err := downloader.Download(ctx, basepath, book); err != nil {
+					return err
+				}
+				file, err := os.Create(filepath)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
 
-			encoder := json.NewEncoder(file)
-			encoder.SetIndent("", "\t")
-			if encoder.Encode(book) != nil {
-				log.Fatal(err)
-			}
+				encoder := json.NewEncoder(file)
+				encoder.SetIndent("", "\t")
+				if encoder.Encode(book) != nil {
+					return err
+				}
 
-			return
-		}(book)
+				return nil
+			}(book)
+		}
+		if err != nil {
+			return err
+		}
 
 		log.Println("the book is loaded:", book.Title, book.ID)
 	}
+
+	return nil
 }
