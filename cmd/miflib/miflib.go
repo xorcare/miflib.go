@@ -159,7 +159,7 @@ func worker(wg *sync.WaitGroup, books <-chan jd.Book, basepath string) {
 				log.Fatal(err)
 			}
 
-			filepath := path.Join(basepath, fmt.Sprintf("book-%d.json", book.ID))
+			filepath := path.Join(basepath, "book.json")
 
 			if _, err := os.Stat(filepath); !os.IsNotExist(err) {
 				log.Println("book is already downloaded earlier:", book.Title, book.ID)
@@ -169,7 +169,6 @@ func worker(wg *sync.WaitGroup, books <-chan jd.Book, basepath string) {
 			if err := downloader.Download(basepath, book); err != nil {
 				log.Fatal(err)
 			}
-
 			file, err := os.Create(filepath)
 			if err != nil {
 				log.Fatal(err)
