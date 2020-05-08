@@ -79,6 +79,14 @@ func main() {
 			Required: true,
 			EnvVars:  []string{"MIFLIB_HOSTNAME"},
 		},
+		&cli.StringFlag{
+			Name:     "d",
+			Aliases:  []string{"directory"},
+			Usage:    "the directory where books will be placed",
+			Required: true,
+			EnvVars:  []string{"MIFLIB_DIRECTORY"},
+			Value:    ".",
+		},
 		&cli.IntFlag{
 			Name:    "n",
 			Aliases: []string{"num-threads"},
@@ -130,7 +138,7 @@ func action(c *cli.Context) error {
 	wg := sync.WaitGroup{}
 	wg.Add(c.Int("n"))
 	for i := 0; i < c.Int("n"); i++ {
-		go worker(&wg, ch, "books")
+		go worker(&wg, ch, c.String("d"))
 	}
 
 	for _, book := range books.Books {
