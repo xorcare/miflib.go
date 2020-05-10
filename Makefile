@@ -15,11 +15,13 @@ NAMESPACE = github.com/xorcare/pointer
 # to check code coverage.
 COVER_FILE ?= coverage.out
 
+VCS_VERSION ?= $(shell git describe --dirty --long --always --tags || echo 'v0.0.0')
+
 # AT addition to commands to hide unnecessary command output.
 AT ?= @
 
 build: ## Build the project binary
-	$(AT)go build -ldflags "-X main.Version=$(shell git describe --always --tags || echo 'v0.0.0')" ./cmd/miflib
+	$(AT)go build -ldflags "-X main.Version=$(VCS_VERSION)" ./cmd/miflib
 
 check: static test build ## Check project with static checks and unit tests
 
