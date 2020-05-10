@@ -33,6 +33,9 @@ imports: tools ## Check and fix import section by import rules
 	$(AT)test -z $$(for d in $$(go list -f {{.Dir}} ./...); \
 	do goimports -e -l -local $(NAMESPACE) -w $$d/*.go; done)
 
+install: ## Install the project binary
+	$(AT)go install -ldflags "-X main.Version=$(VCS_VERSION)" ./cmd/miflib
+
 lint: tools ## Check the project with lint
 	$(AT)golint -set_exit_status ./...
 
@@ -50,5 +53,5 @@ tools: ## Install all needed tools, e.g., for static checks
 vet: ## Check the project with vet
 	$(AT)go vet ./...
 
-.PHONY: build check help imports lint static test tools toolsup vet
+.PHONY: build check help imports install lint static test tools toolsup vet
 .DEFAULT_GOAL := build
