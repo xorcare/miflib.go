@@ -4,7 +4,7 @@
 
 // +build tools
 
-package tools
+package miflib
 
 import (
 	_ "golang.org/x/lint/golint"

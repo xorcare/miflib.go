@@ -41,22 +41,9 @@ test: ## Run unit tests
 	$(AT)go test ./... -count=1 -coverprofile=$(COVER_FILE) -covermode=atomic $d
 	$(AT)go tool cover -func=$(COVER_FILE) | grep ^total
 
-CDT ?= $(AT)cd internal/tools &&
 tools: ## Install all needed tools, e.g., for static checks
-	$(CDT) \
-	go install \
-	golang.org/x/lint/golint \
-	golang.org/x/tools/cmd/goimports
-
-toolsup: ## Update all needed tools, e.g., for static checks
-	$(CDT) \
-	go mod tidy && \
-	go get \
-	golang.org/x/lint/golint$(AT)latest \
-	golang.org/x/tools/cmd/goimports$(AT)latest && \
-	go mod download && \
-	go mod verify
-	$(AT)make tools
+	@echo Installing tools from tools.go
+	@cat tools.go | grep _ | awk -F'"' '{print $$2}' | xargs -tI % go install %
 
 vet: ## Check the project with vet
 	$(AT)go vet ./...
