@@ -21,8 +21,9 @@ import (
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/xorcare/miflib.go/internal/books"
+	"github.com/xorcare/miflib.go/internal/books/book"
 	"github.com/xorcare/miflib.go/internal/downloader"
-	"github.com/xorcare/miflib.go/internal/jd"
 )
 
 // Version of the application is installed from outside during assembly.
@@ -119,7 +120,7 @@ func action(c *cli.Context) error {
 		return err
 	}
 
-	ch := make(chan jd.Book)
+	ch := make(chan book.Book)
 
 	ctx, done := context.WithCancel(context.Background())
 
@@ -157,19 +158,19 @@ func action(c *cli.Context) error {
 			return err
 		}
 
-		books := jd.Books{}
-		err = json.NewDecoder(res.Body).Decode(&books)
+		bks := books.Books{}
+		err = json.NewDecoder(res.Body).Decode(&bks)
 		if err != nil {
 			return err
 		}
 
-		for len(books.Books) > 0 {
+		for len(bks.Books) > 0 {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				ch <- books.Books[0]
-				books.Books = books.Books[1:]
+				ch <- bks.Books[0]
+				bks.Books = bks.Books[1:]
 			}
 		}
 
@@ -185,16 +186,16 @@ func action(c *cli.Context) error {
 	return nil
 }
 
-func worker(ctx context.Context, books <-chan jd.Book, basepath string) (err error) {
-	for book := range books {
+func worker(ctx context.Context, ch <-chan book.Book, basepath string) (err error) {
+	for bk := range ch {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			log.Println("start processing book:", book.Title, book.ID)
+			log.Println("start processing book:", bk.Title, bk.ID)
 			err = func(payload interface{}) error {
-				defer log.Println("finish processing book:", book.Title, book.ID)
-				book := payload.(jd.Book)
+				defer log.Println("finish processing book:", bk.Title, bk.ID)
+				book := payload.(book.Book)
 
 				basepath = path.Join(basepath, fmt.Sprintf("%05d %s", book.ID, book.Title))
 				if err := os.MkdirAll(basepath, 0755); err != nil {
@@ -224,13 +225,13 @@ func worker(ctx context.Context, books <-chan jd.Book, basepath string) (err err
 				}
 
 				return nil
-			}(book)
+			}(bk)
 		}
 		if err != nil {
 			return err
 		}
 
-		log.Println("the book is loaded:", book.Title, book.ID)
+		log.Println("the book is loaded:", bk.Title, bk.ID)
 	}
 
 	return nil
