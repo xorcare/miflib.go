@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"path"
 	"runtime"
+	"time"
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/net/publicsuffix"
@@ -96,6 +97,15 @@ func main() {
 			EnvVars: []string{"MIFLIB_NUM_THREADS"},
 			Value:   runtime.NumCPU(),
 		},
+		&cli.DurationFlag{
+			Name: "http-response-header-timeout",
+			Usage: "specifies the amount of time to wait for a server's" +
+				" response headers after fully writing the request (including" +
+				" its body, if any). This time does not include the time to" +
+				" read the response body.",
+			EnvVars: []string{"MIFLIB_HTTP_RESPONSE_HEADER_TIMEOUT"},
+			Value:   time.Minute,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -104,6 +114,10 @@ func main() {
 }
 
 func action(c *cli.Context) error {
+	http.DefaultClient.Transport = &http.Transport{
+		ResponseHeaderTimeout: c.Duration("http-response-header-timeout"),
+	}
+
 	uri, err := url.Parse(fmt.Sprintf("https://%s/auth/login.ajax", c.String("h")))
 	if err != nil {
 		return err
