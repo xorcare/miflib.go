@@ -193,11 +193,10 @@ func worker(ctx context.Context, ch <-chan book.Book, basepath string) (err erro
 			return ctx.Err()
 		default:
 			log.Println("start processing book:", bk.Title, bk.ID)
-			err = func(payload interface{}) error {
+			err = func() error {
 				defer log.Println("finish processing book:", bk.Title, bk.ID)
-				book := payload.(book.Book)
 
-				basepath = path.Join(basepath, fmt.Sprintf("%05d %s", book.ID, book.Title))
+				basepath = path.Join(basepath, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
 				if err := os.MkdirAll(basepath, 0755); err != nil {
 					return err
 				}
@@ -205,11 +204,11 @@ func worker(ctx context.Context, ch <-chan book.Book, basepath string) (err erro
 				filepath := path.Join(basepath, "book.json")
 
 				if _, err := os.Stat(filepath); !os.IsNotExist(err) {
-					log.Println("book is already downloaded earlier:", book.Title, book.ID)
+					log.Println("book is already downloaded earlier:", bk.Title, bk.ID)
 					return nil
 				}
 
-				if err := downloader.Download(ctx, basepath, book); err != nil {
+				if err := downloader.Download(ctx, basepath, bk); err != nil {
 					return err
 				}
 				file, err := os.Create(filepath)
@@ -220,12 +219,12 @@ func worker(ctx context.Context, ch <-chan book.Book, basepath string) (err erro
 
 				encoder := json.NewEncoder(file)
 				encoder.SetIndent("", "\t")
-				if encoder.Encode(book) != nil {
+				if encoder.Encode(bk) != nil {
 					return err
 				}
 
 				return nil
-			}(bk)
+			}()
 		}
 		if err != nil {
 			return err
