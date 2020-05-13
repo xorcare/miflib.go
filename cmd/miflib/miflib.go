@@ -54,7 +54,7 @@ func main() {
 		}},
 	}
 
-	app.Copyright = "Copyright (c) 2019 Vasiliy Vasilyuk. All rights reserved.\n"
+	app.Copyright = "Copyright (c) 2019-2020 Vasiliy Vasilyuk\n"
 	app.Usage = "Application to download data from miflib library."
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
