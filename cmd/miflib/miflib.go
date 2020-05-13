@@ -31,7 +31,7 @@ import (
 var Version = "v0.0.0"
 
 func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetFlags(log.LstdFlags)
 
 	cli.HelpFlag = &cli.BoolFlag{
 		Name:  "help",
