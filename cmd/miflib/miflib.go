@@ -32,11 +32,6 @@ var Version = "v0.0.0"
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		log.Fatal(err)
-	}
-	http.DefaultClient.Jar = jar
 
 	cli.HelpFlag = &cli.BoolFlag{
 		Name:  "help",
@@ -114,6 +109,11 @@ func main() {
 }
 
 func action(c *cli.Context) error {
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		return err
+	}
+	http.DefaultClient.Jar = jar
 	http.DefaultClient.Transport = &http.Transport{
 		ResponseHeaderTimeout: c.Duration("http-response-header-timeout"),
 	}
