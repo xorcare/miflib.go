@@ -23,6 +23,9 @@ AT ?= @
 build: ## Build the project binary
 	$(AT)go build -ldflags "-X main.Version=$(VCS_VERSION)" ./cmd/miflib
 
+run: ## Build the project binary
+	$(AT)go run -ldflags "-X main.Version=$(VCS_VERSION)" ./cmd/miflib
+
 check: static test build ## Check project with static checks and unit tests
 
 help: ## Print this help
@@ -53,5 +56,5 @@ tools: ## Install all needed tools, e.g., for static checks
 vet: ## Check the project with vet
 	$(AT)go vet ./...
 
-.PHONY: build check help imports install lint static test tools toolsup vet
+.PHONY: build check help imports install lint static test tools toolsup vet run
 .DEFAULT_GOAL := build
