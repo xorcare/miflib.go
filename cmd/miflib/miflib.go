@@ -25,6 +25,7 @@ import (
 	"github.com/xorcare/miflib.go/internal/books"
 	"github.com/xorcare/miflib.go/internal/books/book"
 	"github.com/xorcare/miflib.go/internal/downloader"
+	"github.com/xorcare/miflib.go/internal/flags"
 )
 
 // Version of the application is installed from outside during assembly.
@@ -58,47 +59,47 @@ func main() {
 	app.Usage = "Application to download data from miflib library."
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
-			Name:     "u",
-			Aliases:  []string{"username"},
+			Name:     flags.Username,
+			Aliases:  []string{"u"},
 			Usage:    "username for the library",
 			Required: true,
-			EnvVars:  []string{"MIFLIB_USERNAME"},
+			EnvVars:  flags.Env(flags.Username),
 		},
 		&cli.StringFlag{
-			Name:     "p",
-			Aliases:  []string{"password"},
+			Name:     flags.Password,
+			Aliases:  []string{"p"},
 			Usage:    "password for the library",
 			Required: true,
-			EnvVars:  []string{"MIFLIB_PASSWORD"},
+			EnvVars:  flags.Env(flags.Password),
 		},
 		&cli.StringFlag{
-			Name:     "h",
-			Aliases:  []string{"hostname"},
+			Name:     flags.Hostname,
+			Aliases:  []string{"h"},
 			Usage:    "hostname for the library",
 			Required: true,
-			EnvVars:  []string{"MIFLIB_HOSTNAME"},
+			EnvVars:  flags.Env(flags.Hostname),
 		},
 		&cli.StringFlag{
-			Name:    "d",
-			Aliases: []string{"directory"},
+			Name:    flags.Directory,
+			Aliases: []string{"d"},
 			Usage:   "the directory where books will be placed",
-			EnvVars: []string{"MIFLIB_DIRECTORY"},
+			EnvVars: flags.Env(flags.Directory),
 			Value:   ".",
 		},
 		&cli.IntFlag{
-			Name:    "n",
-			Aliases: []string{"num-threads"},
+			Name:    flags.NumThreads,
+			Aliases: []string{"n"},
 			Usage:   "number of books processed in parallel",
-			EnvVars: []string{"MIFLIB_NUM_THREADS"},
+			EnvVars: flags.Env(flags.NumThreads),
 			Value:   runtime.NumCPU(),
 		},
 		&cli.DurationFlag{
-			Name: "http-response-header-timeout",
+			Name: flags.HTTPResponseHeaderTimeout,
 			Usage: "specifies the amount of time to wait for a server's" +
 				" response headers after fully writing the request (including" +
 				" its body, if any). This time does not include the time to" +
 				" read the response body.",
-			EnvVars: []string{"MIFLIB_HTTP_RESPONSE_HEADER_TIMEOUT"},
+			EnvVars: flags.Env(flags.HTTPResponseHeaderTimeout),
 			Value:   time.Minute,
 		},
 	}
@@ -115,16 +116,16 @@ func action(c *cli.Context) error {
 	}
 	http.DefaultClient.Jar = jar
 	http.DefaultClient.Transport = &http.Transport{
-		ResponseHeaderTimeout: c.Duration("http-response-header-timeout"),
+		ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
 	}
 
-	uri, err := url.Parse(fmt.Sprintf("https://%s/auth/login.ajax", c.String("h")))
+	uri, err := url.Parse(fmt.Sprintf("https://%s/auth/login.ajax", c.String(flags.Hostname)))
 	if err != nil {
 		return err
 	}
 
 	res, err := http.Post(uri.String(), "application/json;charset=utf-8", bytes.NewBufferString(
-		fmt.Sprintf(`{"email":%q,"password":%q}`, c.String("u"), c.String("p")),
+		fmt.Sprintf(`{"email":%q,"password":%q}`, c.String(flags.Username), c.String(flags.Password)),
 	))
 	if err != nil {
 		return err
@@ -154,9 +155,9 @@ func action(c *cli.Context) error {
 
 	wg, ctx := errgroup.WithContext(ctx)
 
-	for i := 0; i < c.Int("n"); i++ {
+	for i := 0; i < c.Int(flags.NumThreads); i++ {
 		wg.Go(func() error {
-			return worker(ctx, ch, c.String("d"))
+			return worker(ctx, ch, c.String(flags.Directory))
 		})
 	}
 
