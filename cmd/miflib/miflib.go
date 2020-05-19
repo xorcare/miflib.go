@@ -211,19 +211,19 @@ func worker(ctx context.Context, ch <-chan book.Book, basepath string) (err erro
 			err = func() error {
 				defer log.Println("finish processing book:", bk.Title, bk.ID)
 
-				basepath = path.Join(basepath, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
-				if err := os.MkdirAll(basepath, 0755); err != nil {
+				bookpath := path.Join(basepath, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
+				if err := os.MkdirAll(bookpath, 0755); err != nil {
 					return err
 				}
 
-				filepath := path.Join(basepath, "book.json")
+				filepath := path.Join(bookpath, "book.json")
 
 				if _, err := os.Stat(filepath); !os.IsNotExist(err) {
 					log.Println("book is already downloaded earlier:", bk.Title, bk.ID)
 					return nil
 				}
 
-				if err := downloader.Download(ctx, basepath, bk); err != nil {
+				if err := downloader.Download(ctx, bookpath, bk); err != nil {
 					return err
 				}
 				file, err := os.Create(filepath)
