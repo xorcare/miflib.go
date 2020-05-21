@@ -50,8 +50,8 @@ test: ## Run unit tests
 	$(AT)go tool cover -func=$(COVER_FILE) | grep ^total
 
 tools: ## Install all needed tools, e.g., for static checks
-	@echo Installing tools from tools.go
-	@cat tools.go | grep _ | awk -F'"' '{print $$2}' | xargs -tI % go install %
+	$(AT)echo Installing tools from tools.go
+	$(AT)cat tools.go | grep _ | awk -F'"' '{print $$2}' | xargs -tI % go install %
 
 vet: ## Check the project with vet
 	$(AT)go vet ./...
