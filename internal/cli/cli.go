@@ -1,17 +1,12 @@
 package cli
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
-	"net/url"
 	"os"
 	"os/signal"
-	"path"
 	"runtime"
 	"time"
 
@@ -19,8 +14,8 @@ import (
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/xorcare/miflib.go/internal/books"
-	"github.com/xorcare/miflib.go/internal/books/book"
+	"github.com/xorcare/miflib.go/internal/api"
+	"github.com/xorcare/miflib.go/internal/book"
 	"github.com/xorcare/miflib.go/internal/downloader"
 	"github.com/xorcare/miflib.go/internal/flags"
 )
@@ -101,31 +96,6 @@ func New(version string) *cli.App {
 }
 
 func action(c *cli.Context) error {
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		return err
-	}
-	http.DefaultClient.Jar = jar
-	http.DefaultClient.Transport = &http.Transport{
-		ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
-	}
-
-	uri, err := url.Parse(fmt.Sprintf("https://%s/auth/login.ajax", c.String(flags.Hostname)))
-	if err != nil {
-		return err
-	}
-
-	res, err := http.Post(uri.String(), "application/json;charset=utf-8", bytes.NewBufferString(
-		fmt.Sprintf(`{"email":%q,"password":%q}`, c.String(flags.Username), c.String(flags.Password)),
-	))
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if err := downloader.CheckResponse(res); err != nil {
-		return err
-	}
-
 	ch := make(chan book.Book)
 
 	ctx, done := context.WithCancel(context.Background())
@@ -144,28 +114,40 @@ func action(c *cli.Context) error {
 		}
 	}()
 
+	jar, err := cookiejar.New(&cookiejar.Options{
+		PublicSuffixList: publicsuffix.List,
+	})
+	if err != nil {
+		return err
+	}
+
+	apiClient := api.NewClient(
+		"https://"+c.String(flags.Hostname),
+		api.OptDoer(&http.Client{
+			Timeout: time.Hour,
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
+			},
+			Jar: jar,
+		}),
+	)
+
+	if err := apiClient.Login(ctx, c.String(flags.Username), c.String(flags.Password)); err != nil {
+		return err
+	}
+
 	wg, ctx := errgroup.WithContext(ctx)
 
+	loader := downloader.NewLoader(c.String(flags.Directory), apiClient)
 	for i := 0; i < c.Int(flags.NumThreads); i++ {
 		wg.Go(func() error {
-			return worker(ctx, ch, c.String(flags.Directory))
+			return loader.Worker(ctx, ch)
 		})
 	}
 
 	wg.Go(func() error {
 		defer close(ch)
-		uri.Path = "books/list.ajax"
-		res, err = http.Get(uri.String())
-		if err != nil {
-			return err
-		}
-		defer res.Body.Close()
-		if err := downloader.CheckResponse(res); err != nil {
-			return err
-		}
-
-		bks := books.Books{}
-		err = json.NewDecoder(res.Body).Decode(&bks)
+		bks, err := apiClient.List(ctx)
 		if err != nil {
 			return err
 		}
@@ -188,56 +170,6 @@ func action(c *cli.Context) error {
 	}
 
 	log.Println("correct completion of processing")
-
-	return nil
-}
-
-func worker(ctx context.Context, ch <-chan book.Book, basepath string) (err error) {
-	for bk := range ch {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			log.Println("start processing book:", bk.Title, bk.ID)
-			err = func() error {
-				defer log.Println("finish processing book:", bk.Title, bk.ID)
-
-				bookpath := path.Join(basepath, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
-				if err := os.MkdirAll(bookpath, 0755); err != nil {
-					return err
-				}
-
-				filepath := path.Join(bookpath, "book.json")
-
-				if _, err := os.Stat(filepath); !os.IsNotExist(err) {
-					log.Println("book is already downloaded earlier:", bk.Title, bk.ID)
-					return nil
-				}
-
-				if err := downloader.Download(ctx, bookpath, bk); err != nil {
-					return err
-				}
-				file, err := os.Create(filepath)
-				if err != nil {
-					return err
-				}
-				defer file.Close()
-
-				encoder := json.NewEncoder(file)
-				encoder.SetIndent("", "\t")
-				if encoder.Encode(bk) != nil {
-					return err
-				}
-
-				return nil
-			}()
-		}
-		if err != nil {
-			return err
-		}
-
-		log.Println("the book is loaded:", bk.Title, bk.ID)
-	}
 
 	return nil
 }

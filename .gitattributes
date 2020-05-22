@@ -1,0 +1,2 @@
+It is necessary that git does not change the golden files
+*.golden binary

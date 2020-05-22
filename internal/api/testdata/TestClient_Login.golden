@@ -1,0 +1,5 @@
+POST /auth/login.ajax HTTP/1.1
+Host: localhost:65535
+Content-Type: application/json;charset=utf-8
+
+{"email":"TestClient_Login","password":"TestClient_Login"}

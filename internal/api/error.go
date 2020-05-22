@@ -1,4 +1,4 @@
-package downloader
+package api
 
 import (
 	"fmt"
@@ -22,9 +22,9 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("downloader: got HTTP response of url %s code %d with body: %v", e.URL.String(), e.Code, e.Body)
 }
 
-// CheckResponse returns an error (of type *Error) if the response
+// checkResponse returns an error (of type *Error) if the response
 // status code is not 2xx.
-func CheckResponse(response *http.Response) error {
+func checkResponse(response *http.Response) error {
 	if response.StatusCode >= 200 && response.StatusCode <= 299 {
 		return nil
 	}

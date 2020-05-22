@@ -1,7 +1,7 @@
 package book
 
 import (
-	"github.com/xorcare/miflib.go/internal/books/book/files"
+	"github.com/xorcare/miflib.go/internal/book/files"
 )
 
 // Book the dataset about the book.
