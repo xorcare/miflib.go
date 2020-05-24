@@ -58,18 +58,6 @@ func (l *Loader) download(ctx context.Context, basepath string, bk book.Book) er
 
 	for _, f := range downloaders {
 		if err := f(ctx, basepath, bk); err != nil {
-			if err, ok := err.(*url.Error); ok {
-				if err.Err.Error() == "stopped after 10 redirects" {
-					l.log.Warnf("skip redirect error for the book %q", bk.Title)
-					continue
-				}
-			}
-
-			if err, ok := err.(*api.Error); ok && err.Code == 404 {
-				l.log.Warnf("skip undiscovered files for the book %q with error %q", bk.Title, err)
-				continue
-			}
-
 			return err
 		}
 	}
@@ -91,7 +79,6 @@ func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
 			if err := os.MkdirAll(bookpath, 0755); err != nil {
 				return err
 			}
-
 			filepath := path.Join(bookpath, "book.json")
 
 			if _, err := os.Stat(filepath); !os.IsNotExist(err) {
@@ -210,9 +197,26 @@ func (l *Loader) downloadByAddress(ctx context.Context, basepath, ext string, ad
 	}
 	msg := fmt.Sprintf("%s.%s", title, ext)
 
-	return l.api.DownloadFile(ctx, ad.URL, path.Join(basepath, ext, msg))
+	return l.downloadFile(ctx, ad.URL, path.Join(basepath, ext, msg))
 }
 
 func (l *Loader) downloadFileByURL(ctx context.Context, url, basepath string) error {
-	return l.api.DownloadFile(ctx, url, path.Join(basepath, path.Base(url)))
+	return l.downloadFile(ctx, url, path.Join(basepath, path.Base(url)))
+}
+
+func (l *Loader) downloadFile(ctx context.Context, fileURL, filename string) error {
+	err := l.api.DownloadFile(ctx, fileURL, filename)
+	if err, ok := err.(*url.Error); ok {
+		if err.Err.Error() == "stopped after 10 redirects" {
+			l.log.Warnf("skip redirect error: %q", err)
+			return nil
+		}
+	}
+
+	if err, ok := err.(*api.Error); ok && err.Code == 404 {
+		l.log.Warnf("skip undiscovered files with error %q", err)
+		return nil
+	}
+
+	return err
 }
