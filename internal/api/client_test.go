@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xorcare/golden"
+	"go.uber.org/zap"
 
 	"github.com/xorcare/miflib.go/internal/ctxtest"
 )
@@ -33,6 +34,7 @@ func TestClient_Login(t *testing.T) {
 	c := Client{
 		http:     dm,
 		basepath: "https://localhost:65535",
+		log:      zap.NewNop().Sugar(),
 	}
 
 	dm.On("Do", mock.Anything).Run(checkRequest(t)).
@@ -47,6 +49,7 @@ func TestClient_List(t *testing.T) {
 	c := Client{
 		http:          dm,
 		basepath:      "https://localhost:65535",
+		log:           zap.NewNop().Sugar(),
 		authenticated: true,
 	}
 
@@ -69,6 +72,7 @@ func TestClient_DownloadFile(t *testing.T) {
 	defer dm.AssertExpectations(t)
 	c := Client{
 		http:          dm,
+		log:           zap.NewNop().Sugar(),
 		authenticated: true,
 	}
 

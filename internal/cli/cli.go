@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
+	"go.uber.org/zap"
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/sync/errgroup"
 
@@ -88,7 +88,13 @@ func New(version string) *cli.App {
 				" its body, if any). This time does not include the time to" +
 				" read the response body.",
 			EnvVars: flags.Env(flags.HTTPResponseHeaderTimeout),
-			Value:   time.Second * 10,
+			Value:   time.Minute,
+		},
+		&cli.BoolFlag{
+			Name:    flags.Verbose,
+			Aliases: []string{"v"},
+			EnvVars: flags.Env(flags.Verbose),
+			Value:   false,
 		},
 	}
 
@@ -96,6 +102,29 @@ func New(version string) *cli.App {
 }
 
 func action(c *cli.Context) error {
+	loggerConf := zap.Config{
+		Level:       zap.NewAtomicLevelAt(zap.InfoLevel),
+		Development: false,
+		Sampling: &zap.SamplingConfig{
+			Initial:    100,
+			Thereafter: 100,
+		},
+		Encoding:          "console",
+		EncoderConfig:     zap.NewDevelopmentEncoderConfig(),
+		OutputPaths:       []string{"stderr"},
+		ErrorOutputPaths:  []string{"stderr"},
+		DisableCaller:     true,
+		DisableStacktrace: true,
+	}
+
+	if c.Bool(flags.Verbose) {
+		loggerConf.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	}
+
+	logger, _ := loggerConf.Build()
+	sugar := logger.Sugar()
+	defer logger.Sync()
+
 	ch := make(chan book.Book)
 
 	ctx, done := context.WithCancel(context.Background())
@@ -106,7 +135,7 @@ func action(c *cli.Context) error {
 
 	go func() {
 		<-quit
-		log.Println("miflib is shutting down by os interrupt signal...")
+		logger.Info("miflib is shutting down by os interrupt signal...")
 		done()
 		// You need to completely subtract the channel for successful completion
 		// in the event of an interruption of the program.
@@ -123,6 +152,7 @@ func action(c *cli.Context) error {
 
 	apiClient := api.NewClient(
 		"https://"+c.String(flags.Hostname),
+		sugar,
 		api.OptDoer(&http.Client{
 			Timeout: time.Hour,
 			Transport: &http.Transport{
@@ -138,7 +168,7 @@ func action(c *cli.Context) error {
 
 	wg, ctx := errgroup.WithContext(ctx)
 
-	loader := downloader.NewLoader(c.String(flags.Directory), apiClient)
+	loader := downloader.NewLoader(c.String(flags.Directory), apiClient, sugar)
 	for i := 0; i < c.Int(flags.NumThreads); i++ {
 		wg.Go(func() error {
 			return loader.Worker(ctx, ch)
@@ -152,13 +182,15 @@ func action(c *cli.Context) error {
 			return err
 		}
 
-		for len(bks.Books) > 0 {
+		sugar.Infof("currently %d books are available for download", bks.Total)
+
+		for i, bk := range bks.Books {
+			sugar.Debugf("%d books are waiting to be downloaded", int(bks.Total)-i)
+
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			default:
-				ch <- bks.Books[0]
-				bks.Books = bks.Books[1:]
+			case ch <- bk:
 			}
 		}
 
@@ -169,7 +201,7 @@ func action(c *cli.Context) error {
 		return err
 	}
 
-	log.Println("correct completion of processing")
+	logger.Info("correct completion of downloading")
 
 	return nil
 }

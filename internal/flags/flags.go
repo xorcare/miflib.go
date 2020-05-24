@@ -12,6 +12,7 @@ const (
 	Directory                 = "directory"
 	NumThreads                = "num-threads"
 	HTTPResponseHeaderTimeout = "http-response-header-timeout"
+	Verbose                   = "verbose"
 )
 
 // Env it's a function for conversion flag name to env variable name.

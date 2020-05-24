@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -23,10 +22,16 @@ type doer interface {
 	Do(req *http.Request) (resp *http.Response, err error)
 }
 
+type logger interface {
+	Debugf(msg string, keysAndValues ...interface{})
+}
+
 // Client client for working with the miflib api.
 type Client struct {
 	http     doer
 	basepath string
+
+	log logger
 
 	mx   sync.RWMutex
 	once sync.Once
@@ -35,7 +40,7 @@ type Client struct {
 }
 
 // Login is a authentication method.
-func (c *Client) Login(ctx context.Context, username, password string) error {
+func (c *Client) Login(ctx context.Context, username, password string) (err error) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
@@ -97,25 +102,24 @@ func (c *Client) DownloadFile(ctx context.Context, url, filename string) (err er
 		return err
 	}
 
-	log.Println("start download from url:", url, "to file:", filename)
-	defer log.Println("finish download from url:", url, "to file:", filename)
+	c.log.Debugf("downloading data from url %q to file %q", url, filename)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
+	var req *http.Request
+	if req, err = http.NewRequest(http.MethodGet, url, nil); err != nil {
 		return err
 	}
 
-	res, err := c.doRequest(ctx, req)
-	if err != nil {
+	var res *http.Response
+	if res, err = c.doRequest(ctx, req); err != nil {
 		return err
 	}
 	defer res.Body.Close()
 
-	if err := checkResponse(res); err != nil {
+	if err = checkResponse(res); err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(path.Dir(filename), 0755); err != nil {
+	if err = os.MkdirAll(path.Dir(filename), 0755); err != nil {
 		return err
 	}
 
@@ -132,6 +136,7 @@ func (c *Client) DownloadFile(ctx context.Context, url, filename string) (err er
 
 func (c *Client) doRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
 	req = req.WithContext(ctx)
+	c.log.Debugf("http request is in progress, method: %q, url: %q", req.Method, req.URL)
 	res, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
@@ -146,10 +151,11 @@ func (c *Client) doRequest(ctx context.Context, req *http.Request) (*http.Respon
 }
 
 // NewClient creates new instance of api client.
-func NewClient(basepath string, opts ...Option) *Client {
+func NewClient(basepath string, logger logger, opts ...Option) *Client {
 	c := &Client{
 		basepath: basepath,
 		http:     &http.Client{},
+		log:      logger,
 	}
 
 	for _, opt := range opts {

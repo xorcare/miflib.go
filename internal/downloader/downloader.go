@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path"
@@ -17,6 +16,12 @@ import (
 	"github.com/xorcare/miflib.go/internal/book"
 	"github.com/xorcare/miflib.go/internal/book/files"
 )
+
+type logger interface {
+	Infof(msg string, keysAndValues ...interface{})
+	Debugf(msg string, keysAndValues ...interface{})
+	Warnf(msg string, keysAndValues ...interface{})
+}
 
 // Downloader this is the file loader interface.
 type Downloader interface {
@@ -28,13 +33,15 @@ type Downloader interface {
 type Loader struct {
 	api  Downloader
 	root string
+	log  logger
 }
 
 // NewLoader creates new instance of loader.
-func NewLoader(basepath string, downloader Downloader) Loader {
+func NewLoader(basepath string, downloader Downloader, logger logger) Loader {
 	return Loader{
 		api:  downloader,
 		root: basepath,
+		log:  logger,
 	}
 }
 
@@ -51,15 +58,15 @@ func (l *Loader) download(ctx context.Context, basepath string, bk book.Book) er
 
 	for _, f := range downloaders {
 		if err := f(ctx, basepath, bk); err != nil {
-			if er, ok := err.(*url.Error); ok {
-				if er.Err.Error() == "stopped after 10 redirects" {
-					log.Println("skip redirect error", err)
+			if err, ok := err.(*url.Error); ok {
+				if err.Err.Error() == "stopped after 10 redirects" {
+					l.log.Warnf("skip redirect error for the book %q", bk.Title)
 					continue
 				}
 			}
 
 			if err, ok := err.(*api.Error); ok && err.Code == 404 {
-				log.Println("skip undiscovered files", err)
+				l.log.Warnf("skip undiscovered files for the book %q with error %q", bk.Title, err)
 				continue
 			}
 
@@ -78,59 +85,57 @@ func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			log.Println("start processing book:", bk.Title, bk.ID)
-			err = func() error {
-				defer log.Println("finish processing book:", bk.Title, bk.ID)
+			l.log.Infof("start downloading the book %q", bk.Title)
 
-				bookpath := path.Join(l.root, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
-				if err := os.MkdirAll(bookpath, 0755); err != nil {
-					return err
-				}
+			bookpath := path.Join(l.root, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
+			if err := os.MkdirAll(bookpath, 0755); err != nil {
+				return err
+			}
 
-				filepath := path.Join(bookpath, "book.json")
+			filepath := path.Join(bookpath, "book.json")
 
-				if _, err := os.Stat(filepath); !os.IsNotExist(err) {
-					log.Println("book is already downloaded earlier:", bk.Title, bk.ID)
-					return nil
-				}
+			if _, err := os.Stat(filepath); !os.IsNotExist(err) {
+				l.log.Infof("the book %q is already downloaded earlier", bk.Title)
+				continue
+			}
 
-				if err := l.download(ctx, bookpath, bk); err != nil {
-					return err
-				}
-				file, err := os.Create(filepath)
-				if err != nil {
-					return err
-				}
-				defer file.Close()
+			if err := l.download(ctx, bookpath, bk); err != nil {
+				return err
+			}
 
-				encoder := json.NewEncoder(file)
-				encoder.SetIndent("", "\t")
-				if encoder.Encode(bk) != nil {
-					return err
-				}
+			l.log.Infof("finishing downloading the book: %q", bk.Title)
 
-				return nil
-			}()
+			file, err := os.Create(filepath)
+			if err != nil {
+				return err
+			}
+			_ = file
+
+			encoder := json.NewEncoder(file)
+			encoder.SetIndent("", "\t")
+			if err := encoder.Encode(bk); err != nil {
+				file.Close()
+				return err
+			}
+			file.Close()
+
+			l.log.Infof("the book %q is loaded", bk.Title)
 		}
-		if err != nil {
-			return err
-		}
-
-		log.Println("the book is loaded:", bk.Title, bk.ID)
 	}
 
 	return nil
 }
 
 func (l *Loader) downloadAudiobook(ctx context.Context, basepath string, book book.Book) error {
-	log.Println("start download audiobook", book.ID)
-	defer log.Println("finish download audiobook", book.ID)
+	l.log.Infof("start downloading are audiobook for the book %q, ", book.Title)
+	l.log.Debugf("available audiobook %s", book.Files.AudioBooks)
+	defer l.log.Infof("finishing downloading are audiobook for the book %q, ", book.Title)
 	basepath = path.Join(basepath, "audiobook")
 	for key, as := range book.Files.AudioBooks {
 		// The zip file contains all mp3 recordings together so there is
 		// no need to download everything together.
 		if key == "mp3" && len(book.Files.AudioBooks["zip"]) > 0 {
-			log.Println("skip mp3 if zip exists")
+			l.log.Infof("skip mp3 because zip exists for the book %q", book.Title)
 			continue
 		}
 		for _, address := range as {
@@ -144,8 +149,9 @@ func (l *Loader) downloadAudiobook(ctx context.Context, basepath string, book bo
 }
 
 func (l *Loader) downloadBook(ctx context.Context, basepath string, book book.Book) error {
-	log.Println("start download e-book", book.ID)
-	defer log.Println("finish download e-book", book.ID)
+	l.log.Infof("start downloading are ebook for the book %q, ", book.Title)
+	l.log.Debugf("available ebook %s", book.Files.Books)
+	defer l.log.Infof("finishing downloading are ebook for the book %q, ", book.Title)
 	basepath = path.Join(basepath, "e-book")
 	for key, as := range book.Files.Books {
 		for _, address := range as {
@@ -159,8 +165,8 @@ func (l *Loader) downloadBook(ctx context.Context, basepath string, book book.Bo
 }
 
 func (l *Loader) downloadCover(ctx context.Context, basepath string, book book.Book) error {
-	log.Println("start download cover", book.ID)
-	defer log.Println("finish download cover", book.ID)
+	l.log.Infof("start downloading are cover for the book %q, ", book.Title)
+	defer l.log.Infof("finishing downloading are cover for the book %q, ", book.Title)
 	if err := l.downloadFileByURL(ctx, book.Cover.Large, basepath); err != nil {
 		return err
 	}
@@ -169,8 +175,9 @@ func (l *Loader) downloadCover(ctx context.Context, basepath string, book book.B
 }
 
 func (l *Loader) downloadDemo(ctx context.Context, basepath string, book book.Book) error {
-	log.Println("start download demo", book.ID)
-	defer log.Println("finish download demo", book.ID)
+	l.log.Infof("start downloading are demo for the book %q", book.Title)
+	l.log.Debugf("available demo %s", book.Files.Demo)
+	defer l.log.Infof("finishing downloading are demo for the book %q, ", book.Title)
 	basepath = path.Join(basepath, "demo")
 	for key, as := range book.Files.Demo {
 		for _, address := range as {
@@ -184,8 +191,8 @@ func (l *Loader) downloadDemo(ctx context.Context, basepath string, book book.Bo
 }
 
 func (l *Loader) downloadPhotos(ctx context.Context, basepath string, book book.Book) error {
-	log.Println("start download photos", book.ID)
-	defer log.Println("finish download photos", book.ID)
+	l.log.Infof("start downloading are photos for the book %q, ", book.Title)
+	defer l.log.Infof("finishing downloading are photos for the book %q, ", book.Title)
 	basepath = path.Join(basepath, "photos")
 	for _, as := range book.Photos {
 		if err := l.downloadFileByURL(ctx, as.URL, basepath); err != nil {
