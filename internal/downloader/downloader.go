@@ -12,6 +12,8 @@ import (
 	"os"
 	"path"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/xorcare/miflib.go/internal/api"
 	"github.com/xorcare/miflib.go/internal/book"
 	"github.com/xorcare/miflib.go/internal/book/files"
@@ -56,13 +58,15 @@ func (l *Loader) download(ctx context.Context, basepath string, bk book.Book) er
 		l.downloadPhotos,
 	}
 
-	for _, f := range downloaders {
-		if err := f(ctx, basepath, bk); err != nil {
-			return err
-		}
+	wg, ctx := errgroup.WithContext(ctx)
+	for i := range downloaders {
+		f := downloaders[i]
+		wg.Go(func() error {
+			return f(ctx, basepath, bk)
+		})
 	}
 
-	return nil
+	return wg.Wait()
 }
 
 // Worker it's a method for processing a channel with books,
