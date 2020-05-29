@@ -17,6 +17,7 @@ import (
 	"github.com/xorcare/miflib.go/internal/api"
 	"github.com/xorcare/miflib.go/internal/book"
 	"github.com/xorcare/miflib.go/internal/book/files"
+	"github.com/xorcare/miflib.go/internal/osutil"
 )
 
 type logger interface {
@@ -72,6 +73,7 @@ func (l *Loader) download(ctx context.Context, basepath string, bk book.Book) er
 // Worker it's a method for processing a channel with books,
 // it downloads information for all books read from the channel.
 func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
+	defer l.log.Debugf("worker finish him work, err: %v", err)
 	for bk := range ch {
 		select {
 		case <-ctx.Done():
@@ -85,9 +87,11 @@ func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
 			}
 			filepath := path.Join(bookpath, "book.json")
 
-			if _, err := os.Stat(filepath); !os.IsNotExist(err) {
+			if exist, err := osutil.FileExists(filepath); exist && err == nil {
 				l.log.Infof("the book %q is already downloaded earlier", bk.Title)
 				continue
+			} else if err != nil {
+				return err
 			}
 
 			if err := l.download(ctx, bookpath, bk); err != nil {
