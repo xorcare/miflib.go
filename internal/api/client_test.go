@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -79,6 +80,7 @@ func TestClient_DownloadFile(t *testing.T) {
 	tempFile, err := ioutil.TempFile("", t.Name())
 	require.NoError(t, err)
 	tempFile.Close()
+	require.NoError(t, os.Remove(tempFile.Name()))
 
 	resp := httptest.NewRecorder()
 	resp.Write([]byte(tempFile.Name()))

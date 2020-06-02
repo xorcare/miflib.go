@@ -11,7 +11,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"sync"
+
+	"github.com/xorcare/miflib.go/internal/osutil"
 )
 
 var errClientDidNotAuthenticate = errors.New("client did not authenticate, please authenticate first")
@@ -92,6 +95,27 @@ func (c *Client) List(ctx context.Context) (resp ListResponse, err error) {
 
 // DownloadFile this is the place to upload files.
 func (c *Client) DownloadFile(ctx context.Context, url, filename string) (err error) {
+	var req *http.Request
+	var res *http.Response
+
+	if exist, err := osutil.FileExists(filename); exist && err == nil {
+		info, err := os.Stat(filename)
+		if req, err = http.NewRequest(http.MethodHead, url, nil); err != nil {
+			return err
+		}
+		if res, err = c.doRequest(ctx, req); err != nil {
+			return err
+		}
+		defer res.Body.Close()
+		if res.Header.Get("Content-Length") == strconv.FormatInt(info.Size(), 10) {
+			c.log.Debugf("skip downloading url %q because file %q exist with equal size: %d",
+				url, filename, info.Size())
+			return nil
+		}
+	} else if err != nil {
+		return err
+	}
+
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 	if !c.authenticated {
@@ -104,12 +128,10 @@ func (c *Client) DownloadFile(ctx context.Context, url, filename string) (err er
 
 	c.log.Debugf("downloading data from url %q to file %q", url, filename)
 
-	var req *http.Request
 	if req, err = http.NewRequest(http.MethodGet, url, nil); err != nil {
 		return err
 	}
 
-	var res *http.Response
 	if res, err = c.doRequest(ctx, req); err != nil {
 		return err
 	}

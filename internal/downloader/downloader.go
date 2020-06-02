@@ -205,7 +205,22 @@ func (l *Loader) downloadByAddress(ctx context.Context, basepath, ext string, ad
 	}
 	msg := fmt.Sprintf("%s.%s", title, ext)
 
-	return l.downloadFile(ctx, ad.URL, path.Join(basepath, ext, msg))
+	filename := path.Join(basepath, ext, msg)
+	if exist, err := osutil.FileExists(filename); exist && err == nil && ad.Size != 0 {
+		info, err := os.Stat(filename)
+		if err != nil {
+			return err
+		}
+		if int64(ad.Size) == info.Size() {
+			l.log.Debugf("skip downloading url %q because file %q exist with equal size: %d",
+				filename, ad.URL, ad.Size)
+			return nil
+		}
+	} else if err != nil {
+		return err
+	}
+
+	return l.downloadFile(ctx, ad.URL, filename)
 }
 
 func (l *Loader) downloadFileByURL(ctx context.Context, url, basepath string) error {
