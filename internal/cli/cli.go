@@ -90,6 +90,12 @@ func New(version string) *cli.App {
 			EnvVars: flags.Env(flags.HTTPResponseHeaderTimeout),
 			Value:   time.Minute,
 		},
+		&cli.DurationFlag{
+			Name:    flags.HTTPTimeout,
+			Usage:   "timeout specifies a time limit for requests made by this tool.",
+			EnvVars: flags.Env(flags.HTTPTimeout),
+			Value:   time.Hour,
+		},
 		&cli.BoolFlag{
 			Name:    flags.Verbose,
 			Aliases: []string{"v"},
@@ -154,7 +160,7 @@ func action(c *cli.Context) error {
 		"https://"+c.String(flags.Hostname),
 		sugar,
 		api.OptDoer(&http.Client{
-			Timeout: time.Hour,
+			Timeout: c.Duration(flags.HTTPTimeout),
 			Transport: &http.Transport{
 				ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
 			},

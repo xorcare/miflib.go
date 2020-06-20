@@ -16,6 +16,7 @@ const (
 	Directory                 = "directory"
 	NumThreads                = "num-threads"
 	HTTPResponseHeaderTimeout = "http-response-header-timeout"
+	HTTPTimeout               = "http-timeout"
 	Verbose                   = "verbose"
 )
 
