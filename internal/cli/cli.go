@@ -196,7 +196,7 @@ func action(c *cli.Context) error {
 		sugar.Infof("currently %d books are available for download", bks.Total)
 
 		for i, bk := range bks.Books {
-			sugar.Debugf("%d books are waiting to be downloaded", int(bks.Total)-i)
+			sugar.Infof("%d books are waiting to be downloaded", int(bks.Total)-i)
 
 			select {
 			case <-ctx.Done():
