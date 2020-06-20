@@ -2,12 +2,13 @@ package book
 
 import (
 	"github.com/xorcare/miflib.go/internal/book/files"
+	"github.com/xorcare/miflib.go/internal/jstring"
 )
 
 // Book the dataset about the book.
 type Book struct {
 	ID           int             `json:"id"`
-	Title        string          `json:"title"`
+	Title        jstring.String  `json:"title"`
 	Subtitle     string          `json:"subtitle"`
 	BookPartLink string          `json:"bookPartLink"`
 	Badges       []string        `json:"badges,omitempty"`
@@ -31,7 +32,7 @@ type Book struct {
 
 // TTS structure for different descriptions.
 type TTS struct {
-	Style string `json:"style,omitempty"`
-	Text  string `json:"text,omitempty"`
-	Title string `json:"title,omitempty"`
+	Style string         `json:"style,omitempty"`
+	Text  string         `json:"text,omitempty"`
+	Title jstring.String `json:"title,omitempty"`
 }
