@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/urfave/cli/v2"
@@ -187,6 +188,10 @@ func action(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+
+		sort.Slice(bks.Books, func(i, j int) bool {
+			return bks.Books[i].ID < bks.Books[j].ID
+		})
 
 		sugar.Infof("currently %d books are available for download", bks.Total)
 
