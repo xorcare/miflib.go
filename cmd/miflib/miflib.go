@@ -11,7 +11,7 @@ import (
 )
 
 // Version of the application is installed from outside during assembly.
-var Version = "v0.0.0"
+var Version = "unknown"
 
 func main() {
 	if err := cli.New(Version).Run(os.Args); err != nil {

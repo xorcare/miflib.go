@@ -15,7 +15,7 @@ NAMESPACE = github.com/xorcare/pointer
 # to check code coverage.
 COVER_FILE ?= coverage.out
 
-VCS_VERSION ?= $(shell git describe --dirty --long --always --tags || echo 'v0.0.0')
+VCS_VERSION ?= $(shell git describe --dirty --long --always --tags || echo 'undefined')
 
 # AT addition to commands to hide unnecessary command output.
 AT ?= @
