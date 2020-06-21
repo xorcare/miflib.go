@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"golang.org/x/sync/errgroup"
 
@@ -206,6 +208,7 @@ func (l *Loader) downloadByAddress(ctx context.Context, basepath, ext string, ad
 	msg := fmt.Sprintf("%s.%s", title, ext)
 
 	filename := path.Join(basepath, ext, msg)
+	filename = cutter(filename)
 	if exist, err := osutil.FileExists(filename); exist && err == nil && ad.Size != 0 {
 		info, err := os.Stat(filename)
 		if err != nil {
@@ -228,6 +231,8 @@ func (l *Loader) downloadFileByURL(ctx context.Context, url, basepath string) er
 }
 
 func (l *Loader) downloadFile(ctx context.Context, fileURL, filename string) error {
+	filename = cutter(filename)
+
 	err := l.api.DownloadFile(ctx, fileURL, filename)
 	if err, ok := err.(*url.Error); ok {
 		if err.Err.Error() == "stopped after 10 redirects" {
@@ -242,4 +247,22 @@ func (l *Loader) downloadFile(ctx context.Context, fileURL, filename string) err
 	}
 
 	return err
+}
+
+// cutter this function is designed to trim file names that are too long
+// due to file system restrictions.
+func cutter(filename string) string {
+	base := filepath.Base(filename)
+
+	if len(base) > 255 {
+		ext := filepath.Ext(filename)
+
+		name := strings.TrimSuffix(base, ext)
+		name = name[:len(name)-1]
+		strings.ToValidUTF8(name, "")
+
+		return cutter(filepath.Join(filepath.Dir(filename), name+ext))
+	}
+
+	return filename
 }

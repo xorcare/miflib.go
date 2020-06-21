@@ -12,10 +12,12 @@ import (
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/xorcare/golden"
 	"go.uber.org/zap"
 
 	"github.com/xorcare/miflib.go/internal/api"
@@ -450,4 +452,32 @@ func TestLoader_Worker(t *testing.T) {
 	fileData, err := ioutil.ReadFile(indexFile)
 	require.NoError(t, err)
 	require.JSONEq(t, string(wantData), string(fileData))
+}
+
+func Test_cutter(t *testing.T) {
+	tests := map[string]string{}
+
+	const maxFileNameLen = 255
+	for i := maxFileNameLen; i < 1024; i++ {
+		tests[genStaticFileName(i)] = genStaticFileName(maxFileNameLen)
+	}
+
+	for i := maxFileNameLen; i > 5; i-- {
+		tests[genStaticFileName(i)] = genStaticFileName(i)
+	}
+
+	for arg, want := range tests {
+		got := cutter(arg)
+		require.Equalf(t, want, got, "want length: %d, got length: %d", len(want), len(got))
+		require.Equal(t, filepath.Dir(want), filepath.Dir(got), "want dir: %q, got dir: %q")
+	}
+
+	t.Run("test on the example of a specific case for book 3344", func(t *testing.T) {
+		golden.Equal(t, []byte(cutter(string(golden.Read(t)))))
+	})
+}
+
+func genStaticFileName(size int) string {
+	const prefix = "/var/folders/yh/x8t18v653t752p5nk400qt580000gn/T/"
+	return prefix + strings.Repeat("w", size-4) + ".txt"
 }
