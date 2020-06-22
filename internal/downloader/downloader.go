@@ -87,9 +87,10 @@ func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
 			if err := os.MkdirAll(bookpath, 0755); err != nil {
 				return err
 			}
-			filepath := path.Join(bookpath, "book.json")
+			bookFile := path.Join(bookpath, "book.json")
+			lockFile := path.Join(bookpath, ".downloaded")
 
-			if exist, err := osutil.FileExists(filepath); exist && err == nil {
+			if exist, err := osutil.FileExists(lockFile); exist && err == nil {
 				l.log.Infof("the book %q is already downloaded earlier", bk.Title)
 				continue
 			} else if err != nil {
@@ -102,19 +103,28 @@ func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
 
 			l.log.Infof("finishing downloading the book: %q", bk.Title)
 
-			file, err := os.Create(filepath)
-			if err != nil {
-				return err
-			}
-			_ = file
+			{
+				file, err := os.Create(bookFile)
+				if err != nil {
+					return err
+				}
+				_ = file
 
-			encoder := json.NewEncoder(file)
-			encoder.SetIndent("", "\t")
-			if err := encoder.Encode(bk); err != nil {
+				encoder := json.NewEncoder(file)
+				encoder.SetIndent("", "\t")
+				if err := encoder.Encode(bk); err != nil {
+					file.Close()
+					return err
+				}
 				file.Close()
-				return err
 			}
-			file.Close()
+			{
+				file, err := os.Create(lockFile)
+				if err != nil {
+					return err
+				}
+				file.Close()
+			}
 
 			l.log.Infof("the book %q is loaded", bk.Title)
 		}
