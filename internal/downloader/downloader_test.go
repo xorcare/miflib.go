@@ -54,7 +54,7 @@ func TestLoader_downloadAudiobook(t *testing.T) {
 	amk.On("DownloadFile", ctx, "https://ogg/2", "jedi/audiobook/ogg/Приложения.ogg").Return(nil).Once()
 
 	require.NoError(t, l.downloadAudiobook(ctx, "jedi", book.Book{
-		Title: "Джедайские техники",
+		Title: "Джедайские техники\n\r\t!",
 		Files: files.Files{
 			AudioBooks: map[string]files.Addresses{
 				"m4b": {
@@ -77,13 +77,13 @@ func TestLoader_downloadAudiobook(t *testing.T) {
 				"ogg": {
 					files.Address{
 						URL:   "https://ogg/0",
-						Title: "Введение",
+						Title: "Введение\r",
 					}, files.Address{
 						URL:   "https://ogg/1",
-						Title: "Глава 1",
+						Title: "Глава 1?",
 					}, files.Address{
 						URL:   "https://ogg/2",
-						Title: "Приложения",
+						Title: "Приложения!",
 					},
 				},
 				"zip": {

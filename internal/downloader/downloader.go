@@ -83,7 +83,9 @@ func (l *Loader) Worker(ctx context.Context, ch <-chan book.Book) (err error) {
 		default:
 			l.log.Infof("start downloading the book %q", bk.Title)
 
-			bookpath := path.Join(l.root, fmt.Sprintf("%05d %s", bk.ID, bk.Title))
+			bookDir := fmt.Sprintf("%05d %s", bk.ID, bk.Title)
+			bookDir = clearBaseName(bookDir)
+			bookpath := path.Join(l.root, bookDir)
 			if err := os.MkdirAll(bookpath, 0755); err != nil {
 				return err
 			}
@@ -241,6 +243,7 @@ func (l *Loader) downloadFileByURL(ctx context.Context, url, basepath string) er
 }
 
 func (l *Loader) downloadFile(ctx context.Context, fileURL, filename string) error {
+	filename = clearBase(filename)
 	filename = cutter(filename)
 
 	err := l.api.DownloadFile(ctx, fileURL, filename)
