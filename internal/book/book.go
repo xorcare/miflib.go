@@ -11,27 +11,29 @@ import (
 
 // Book the dataset about the book.
 type Book struct {
-	ID           int             `json:"id"`
-	Title        jstring.String  `json:"title"`
-	Subtitle     string          `json:"subtitle"`
-	BookPartLink string          `json:"bookPartLink"`
-	Badges       []string        `json:"badges,omitempty"`
-	SimilarBooks []string        `json:"similarBooks,omitempty"`
-	Cover        Cover           `json:"cover"`
-	NewCover     string          `json:"newCover"`
-	Files        files.Files     `json:"files"`
-	TopSmile     interface{}     `json:"topSmile,omitempty"`
-	MifURL       string          `json:"mifUrl"`
-	Description  string          `json:"description"`
-	Stickers     []TTS           `json:"stickers,omitempty"`
-	Quotes       []TTS           `json:"quotes,omitempty"`
-	Experts      []interface{}   `json:"experts,omitempty"`
-	Photos       []files.Address `json:"photos,omitempty"`
-	Videos       []files.Address `json:"videos,omitempty"`
-	Spreads      []interface{}   `json:"spreads,omitempty"`
+	ID int `json:"id"`
+
+	Title       jstring.String `json:"title"`
+	Subtitle    string         `json:"subtitle"`
+	Description string         `json:"description"`
+
 	Authors      []Author        `json:"authors,omitempty"`
+	Badges       []string        `json:"badges,omitempty"`
+	BookPartLink string          `json:"bookPartLink"`
+	Cover        Cover           `json:"cover"`
 	DiscountURL  string          `json:"discountUrl"`
 	Downloads    int             `json:"downloads"`
+	Experts      []interface{}   `json:"experts,omitempty"`
+	Files        files.Files     `json:"files"`
+	MifURL       string          `json:"mifUrl"`
+	NewCover     string          `json:"newCover"`
+	Photos       []files.Address `json:"photos,omitempty"`
+	Quotes       []TTS           `json:"quotes,omitempty"`
+	SimilarBooks []string        `json:"similarBooks,omitempty"`
+	Spreads      []interface{}   `json:"spreads,omitempty"`
+	Stickers     []TTS           `json:"stickers,omitempty"`
+	TopSmile     interface{}     `json:"topSmile,omitempty"`
+	Videos       []files.Address `json:"videos,omitempty"`
 }
 
 // TTS structure for different descriptions.
