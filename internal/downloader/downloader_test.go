@@ -22,7 +22,6 @@ import (
 
 	"github.com/xorcare/miflib.go/internal/api"
 	"github.com/xorcare/miflib.go/internal/book"
-	"github.com/xorcare/miflib.go/internal/book/files"
 	"github.com/xorcare/miflib.go/internal/ctxtest"
 )
 
@@ -55,39 +54,39 @@ func TestLoader_downloadAudiobook(t *testing.T) {
 
 	require.NoError(t, l.downloadAudiobook(ctx, "jedi", book.Book{
 		Title: "Джедайские техники\n\r\t!",
-		Files: files.Files{
-			AudioBooks: map[string]files.Addresses{
+		Files: book.Files{
+			AudioBooks: map[string]book.Addresses{
 				"m4b": {
-					files.Address{
+					book.Address{
 						URL: "https://m4b",
 					},
 				},
 				"mp3": {
-					files.Address{
+					book.Address{
 						URL:   "https://mp3/0",
 						Title: "Введение",
-					}, files.Address{
+					}, book.Address{
 						URL:   "https://mp3/1",
 						Title: "Глава 1",
-					}, files.Address{
+					}, book.Address{
 						URL:   "https://mp3/2",
 						Title: "Приложения",
 					},
 				},
 				"ogg": {
-					files.Address{
+					book.Address{
 						URL:   "https://ogg/0",
 						Title: "Введение\r",
-					}, files.Address{
+					}, book.Address{
 						URL:   "https://ogg/1",
 						Title: "Глава 1?",
-					}, files.Address{
+					}, book.Address{
 						URL:   "https://ogg/2",
 						Title: "Приложения!",
 					},
 				},
 				"zip": {
-					files.Address{
+					book.Address{
 						URL: "https://zip",
 					},
 				},
@@ -99,10 +98,10 @@ func TestLoader_downloadAudiobook(t *testing.T) {
 		amk.On("DownloadFile", ctx, "https://zip/error", "jedi/audiobook/zip/Джедайские техники.zip").Return(io.EOF).Once()
 		require.Error(t, l.downloadAudiobook(ctx, "jedi", book.Book{
 			Title: "Джедайские техники",
-			Files: files.Files{
-				AudioBooks: map[string]files.Addresses{
+			Files: book.Files{
+				AudioBooks: map[string]book.Addresses{
 					"zip": {
-						files.Address{
+						book.Address{
 							URL: "https://zip/error",
 						},
 					},
@@ -131,25 +130,25 @@ func TestLoader_downloadBook(t *testing.T) {
 
 	require.NoError(t, l.downloadBook(ctx, "jedi", book.Book{
 		Title: "Джедайские техники",
-		Files: files.Files{
-			Books: map[string]files.Addresses{
+		Files: book.Files{
+			Books: map[string]book.Addresses{
 				"epub": {
-					files.Address{
+					book.Address{
 						URL: "https://epub",
 					},
 				},
 				"fb2": {
-					files.Address{
+					book.Address{
 						URL: "https://fb2",
 					},
 				},
 				"mobi": {
-					files.Address{
+					book.Address{
 						URL: "https://mobi",
 					},
 				},
 				"pdf": {
-					files.Address{
+					book.Address{
 						URL: "https://pdf",
 					},
 				},
@@ -161,10 +160,10 @@ func TestLoader_downloadBook(t *testing.T) {
 		amk.On("DownloadFile", ctx, "https://epub/error", "jedi/e-book/epub/Джедайские техники.epub").Return(io.EOF).Once()
 		require.Error(t, l.downloadBook(ctx, "jedi", book.Book{
 			Title: "Джедайские техники",
-			Files: files.Files{
-				Books: map[string]files.Addresses{
+			Files: book.Files{
+				Books: map[string]book.Addresses{
 					"epub": {
-						files.Address{
+						book.Address{
 							URL: "https://epub/error",
 						},
 					},
@@ -226,15 +225,15 @@ func TestLoader_downloadDemo(t *testing.T) {
 
 	require.NoError(t, l.downloadDemo(ctx, "jedi", book.Book{
 		Title: "Джедайские техники",
-		Files: files.Files{
-			Demo: map[string]files.Addresses{
+		Files: book.Files{
+			Demo: map[string]book.Addresses{
 				"epub": {
-					files.Address{
+					book.Address{
 						URL: "https://epub",
 					},
 				},
 				"fb2": {
-					files.Address{
+					book.Address{
 						URL: "https://fb2",
 					},
 				},
@@ -246,10 +245,10 @@ func TestLoader_downloadDemo(t *testing.T) {
 		amk.On("DownloadFile", ctx, "https://epub/error", "jedi/demo/epub/Джедайские техники.epub").Return(io.EOF).Once()
 		require.Error(t, l.downloadDemo(ctx, "jedi", book.Book{
 			Title: "Джедайские техники",
-			Files: files.Files{
-				Demo: map[string]files.Addresses{
+			Files: book.Files{
+				Demo: map[string]book.Addresses{
 					"epub": {
-						files.Address{
+						book.Address{
 							URL: "https://epub/error",
 						},
 					},
@@ -276,7 +275,7 @@ func TestLoader_downloadPhotos(t *testing.T) {
 
 	require.NoError(t, l.downloadPhotos(ctx, "jedi", book.Book{
 		Title: "Джедайские техники",
-		Photos: []files.Address{
+		Photos: []book.Address{
 			{
 				URL: "https://032dt.png",
 			}, {
@@ -289,7 +288,7 @@ func TestLoader_downloadPhotos(t *testing.T) {
 		amk.On("DownloadFile", ctx, "https://032dt.png", "jedi/photos/032dt.png").Return(io.EOF).Once()
 		require.Error(t, l.downloadPhotos(ctx, "jedi", book.Book{
 			Title: "Джедайские техники",
-			Photos: []files.Address{
+			Photos: []book.Address{
 				{
 					URL: "https://032dt.png",
 				},
@@ -323,41 +322,41 @@ func TestLoader_download(t *testing.T) {
 
 	require.NoError(t, l.download(ctxtest.Background(), "jedi", book.Book{
 		Title: "Джедайские техники",
-		Photos: []files.Address{{
+		Photos: []book.Address{{
 			URL: "https://photos/photos.png",
 		}},
 		Cover: book.Cover{
 			Small: "https://cover/small.png",
 			Large: "https://cover/large.png",
 		},
-		Files: files.Files{
-			Books: map[string]files.Addresses{
+		Files: book.Files{
+			Books: map[string]book.Addresses{
 				"pdf": {
-					files.Address{
+					book.Address{
 						URL: "https://pdf",
 					},
 				},
 				"mobi": {
-					files.Address{
+					book.Address{
 						URL: "https://mobi",
 					},
 				},
 				"fb2": {
-					files.Address{
+					book.Address{
 						URL: "https://fb2",
 					},
 				},
 			},
-			AudioBooks: map[string]files.Addresses{
+			AudioBooks: map[string]book.Addresses{
 				"zip": {
-					files.Address{
+					book.Address{
 						URL: "https://zip",
 					},
 				},
 			},
-			Demo: map[string]files.Addresses{
+			Demo: map[string]book.Addresses{
 				"epub": {
-					files.Address{
+					book.Address{
 						URL: "https://epub",
 					},
 				},
@@ -396,41 +395,41 @@ func TestLoader_Worker(t *testing.T) {
 
 	bk := book.Book{
 		Title: "Джедайские техники",
-		Photos: []files.Address{{
+		Photos: []book.Address{{
 			URL: "https://photos/photos.png",
 		}},
 		Cover: book.Cover{
 			Small: "https://cover/small.png",
 			Large: "https://cover/large.png",
 		},
-		Files: files.Files{
-			Books: map[string]files.Addresses{
+		Files: book.Files{
+			Books: map[string]book.Addresses{
 				"pdf": {
-					files.Address{
+					book.Address{
 						URL: "https://pdf",
 					},
 				},
 				"mobi": {
-					files.Address{
+					book.Address{
 						URL: "https://mobi",
 					},
 				},
 				"fb2": {
-					files.Address{
+					book.Address{
 						URL: "https://fb2",
 					},
 				},
 			},
-			AudioBooks: map[string]files.Addresses{
+			AudioBooks: map[string]book.Addresses{
 				"zip": {
-					files.Address{
+					book.Address{
 						URL: "https://zip",
 					},
 				},
 			},
-			Demo: map[string]files.Addresses{
+			Demo: map[string]book.Addresses{
 				"epub": {
-					files.Address{
+					book.Address{
 						URL: "https://epub",
 					},
 				},

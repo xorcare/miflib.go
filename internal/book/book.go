@@ -5,7 +5,6 @@
 package book
 
 import (
-	"github.com/xorcare/miflib.go/internal/book/files"
 	"github.com/xorcare/miflib.go/internal/jstring"
 )
 
@@ -17,23 +16,23 @@ type Book struct {
 	Subtitle    string         `json:"subtitle"`
 	Description string         `json:"description"`
 
-	Authors      []Author        `json:"authors,omitempty"`
-	Badges       []string        `json:"badges,omitempty"`
-	BookPartLink string          `json:"bookPartLink"`
-	Cover        Cover           `json:"cover"`
-	DiscountURL  string          `json:"discountUrl"`
-	Downloads    int             `json:"downloads"`
-	Experts      []interface{}   `json:"experts,omitempty"`
-	Files        files.Files     `json:"files"`
-	MifURL       string          `json:"mifUrl"`
-	NewCover     string          `json:"newCover"`
-	Photos       []files.Address `json:"photos,omitempty"`
-	Quotes       []TTS           `json:"quotes,omitempty"`
-	SimilarBooks []string        `json:"similarBooks,omitempty"`
-	Spreads      []interface{}   `json:"spreads,omitempty"`
-	Stickers     []TTS           `json:"stickers,omitempty"`
-	TopSmile     interface{}     `json:"topSmile,omitempty"`
-	Videos       []files.Address `json:"videos,omitempty"`
+	Authors      []Author      `json:"authors,omitempty"`
+	Badges       []string      `json:"badges,omitempty"`
+	BookPartLink string        `json:"bookPartLink"`
+	Cover        Cover         `json:"cover"`
+	DiscountURL  string        `json:"discountUrl"`
+	Downloads    int           `json:"downloads"`
+	Experts      []interface{} `json:"experts,omitempty"`
+	Files        Files         `json:"files"`
+	MifURL       string        `json:"mifUrl"`
+	NewCover     string        `json:"newCover"`
+	Photos       []Address     `json:"photos,omitempty"`
+	Quotes       []TTS         `json:"quotes,omitempty"`
+	SimilarBooks []string      `json:"similarBooks,omitempty"`
+	Spreads      []interface{} `json:"spreads,omitempty"`
+	Stickers     []TTS         `json:"stickers,omitempty"`
+	TopSmile     interface{}   `json:"topSmile,omitempty"`
+	Videos       []Address     `json:"videos,omitempty"`
 }
 
 // TTS structure for different descriptions.

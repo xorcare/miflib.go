@@ -18,7 +18,6 @@ import (
 
 	"github.com/xorcare/miflib.go/internal/api"
 	"github.com/xorcare/miflib.go/internal/book"
-	"github.com/xorcare/miflib.go/internal/book/files"
 	"github.com/xorcare/miflib.go/internal/osutil"
 )
 
@@ -212,7 +211,7 @@ func (l *Loader) downloadPhotos(ctx context.Context, basepath string, book book.
 	return nil
 }
 
-func (l *Loader) downloadByAddress(ctx context.Context, basepath, ext string, ad files.Address, book book.Book) error {
+func (l *Loader) downloadByAddress(ctx context.Context, basepath, ext string, ad book.Address, book book.Book) error {
 	title := ad.Title
 	if title == "" {
 		title = book.Title
