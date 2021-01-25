@@ -38,10 +38,12 @@ func New(version string) *cli.App {
 		Name:    "miflib",
 		Action:  action,
 		Version: version,
-		Authors: []*cli.Author{{
-			Name:  "Vasiliy Vasilyuk",
-			Email: "xorcare@gmail.com",
-		}},
+		Authors: []*cli.Author{
+			{
+				Name:  "Vasiliy Vasilyuk",
+				Email: "xorcare@gmail.com",
+			},
+		},
 	}
 
 	app.Copyright = "Copyright (c) 2019-2020 Vasiliy Vasilyuk\n"
@@ -150,9 +152,11 @@ func action(c *cli.Context) error {
 		}
 	}()
 
-	jar, err := cookiejar.New(&cookiejar.Options{
-		PublicSuffixList: publicsuffix.List,
-	})
+	jar, err := cookiejar.New(
+		&cookiejar.Options{
+			PublicSuffixList: publicsuffix.List,
+		},
+	)
 	if err != nil {
 		return err
 	}
@@ -160,13 +164,15 @@ func action(c *cli.Context) error {
 	apiClient := api.NewClient(
 		"https://"+c.String(flags.Hostname),
 		sugar,
-		api.OptDoer(&http.Client{
-			Timeout: c.Duration(flags.HTTPTimeout),
-			Transport: &http.Transport{
-				ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
+		api.OptDoer(
+			&http.Client{
+				Timeout: c.Duration(flags.HTTPTimeout),
+				Transport: &http.Transport{
+					ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
+				},
+				Jar: jar,
 			},
-			Jar: jar,
-		}),
+		),
 	)
 
 	if err := apiClient.Login(ctx, c.String(flags.Username), c.String(flags.Password)); err != nil {
@@ -177,36 +183,42 @@ func action(c *cli.Context) error {
 
 	loader := downloader.NewLoader(c.String(flags.Directory), apiClient, sugar)
 	for i := 0; i < c.Int(flags.NumThreads); i++ {
-		wg.Go(func() error {
-			return loader.Worker(ctx, ch)
-		})
+		wg.Go(
+			func() error {
+				return loader.Worker(ctx, ch)
+			},
+		)
 	}
 
-	wg.Go(func() error {
-		defer close(ch)
-		bks, err := apiClient.List(ctx)
-		if err != nil {
-			return err
-		}
-
-		sort.Slice(bks.Books, func(i, j int) bool {
-			return bks.Books[i].ID < bks.Books[j].ID
-		})
-
-		sugar.Infof("currently %d books are available for download", bks.Total)
-
-		for i, bk := range bks.Books {
-			sugar.Infof("%d books are waiting to be downloaded", int(bks.Total)-i)
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case ch <- bk:
+	wg.Go(
+		func() error {
+			defer close(ch)
+			bks, err := apiClient.List(ctx)
+			if err != nil {
+				return err
 			}
-		}
 
-		return nil
-	})
+			sort.Slice(
+				bks.Books, func(i, j int) bool {
+					return bks.Books[i].ID < bks.Books[j].ID
+				},
+			)
+
+			sugar.Infof("currently %d books are available for download", bks.Total)
+
+			for i, bk := range bks.Books {
+				sugar.Infof("%d books are waiting to be downloaded", int(bks.Total)-i)
+
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case ch <- bk:
+				}
+			}
+
+			return nil
+		},
+	)
 
 	if err := wg.Wait(); err != nil {
 		return err
