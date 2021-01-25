@@ -6,9 +6,7 @@ import (
 	"net/http/cookiejar"
 	"os"
 	"os/signal"
-	"runtime"
 	"sort"
-	"time"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -18,19 +16,8 @@ import (
 	"github.com/xorcare/miflib.go/internal/api"
 	"github.com/xorcare/miflib.go/internal/book"
 	"github.com/xorcare/miflib.go/internal/downloader"
-	"github.com/xorcare/miflib.go/internal/flags"
+	"github.com/xorcare/miflib.go/internal/flag"
 )
-
-func init() {
-	cli.HelpFlag = &cli.BoolFlag{
-		Name:  "help",
-		Usage: "print help",
-	}
-	cli.VersionFlag = &cli.BoolFlag{
-		Name:  "version",
-		Usage: "print the version",
-	}
-}
 
 // New returns new instance of miflib application.
 func New(version string) *cli.App {
@@ -48,63 +35,16 @@ func New(version string) *cli.App {
 
 	app.Copyright = "Copyright (c) 2019-2020 Vasiliy Vasilyuk\n"
 	app.Usage = "Application to download data from miflib library."
+
 	app.Flags = []cli.Flag{
-		&cli.StringFlag{
-			Name:     flags.Username,
-			Aliases:  []string{"u"},
-			Usage:    "username for the library",
-			Required: true,
-			EnvVars:  flags.Env(flags.Username),
-		},
-		&cli.StringFlag{
-			Name:     flags.Password,
-			Aliases:  []string{"p"},
-			Usage:    "password for the library",
-			Required: true,
-			EnvVars:  flags.Env(flags.Password),
-		},
-		&cli.StringFlag{
-			Name:     flags.Hostname,
-			Aliases:  []string{"h"},
-			Usage:    "hostname for the library",
-			Required: true,
-			EnvVars:  flags.Env(flags.Hostname),
-		},
-		&cli.StringFlag{
-			Name:    flags.Directory,
-			Aliases: []string{"d"},
-			Usage:   "the directory where books will be placed",
-			EnvVars: flags.Env(flags.Directory),
-			Value:   ".",
-		},
-		&cli.IntFlag{
-			Name:    flags.NumThreads,
-			Aliases: []string{"n"},
-			Usage:   "number of books processed in parallel",
-			EnvVars: flags.Env(flags.NumThreads),
-			Value:   runtime.NumCPU(),
-		},
-		&cli.DurationFlag{
-			Name: flags.HTTPResponseHeaderTimeout,
-			Usage: "specifies the amount of time to wait for a server's" +
-				" response headers after fully writing the request (including" +
-				" its body, if any). This time does not include the time to" +
-				" read the response body.",
-			EnvVars: flags.Env(flags.HTTPResponseHeaderTimeout),
-			Value:   time.Minute,
-		},
-		&cli.DurationFlag{
-			Name:    flags.HTTPTimeout,
-			Usage:   "timeout specifies a time limit for requests made by this tool.",
-			EnvVars: flags.Env(flags.HTTPTimeout),
-			Value:   time.Hour,
-		},
-		&cli.BoolFlag{
-			Name:    flags.Verbose,
-			Aliases: []string{"v"},
-			EnvVars: flags.Env(flags.Verbose),
-			Value:   false,
-		},
+		flag.Username,
+		flag.Password,
+		flag.Hostname,
+		flag.Directory,
+		flag.NumThreads,
+		flag.HTTPResponseHeaderTimeout,
+		flag.HTTPTimeout,
+		flag.Verbose,
 	}
 
 	return app
@@ -126,7 +66,7 @@ func action(c *cli.Context) error {
 		DisableStacktrace: true,
 	}
 
-	if c.Bool(flags.Verbose) {
+	if c.Bool(flag.Verbose.Name) {
 		loggerConf.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	}
 
@@ -151,7 +91,6 @@ func action(c *cli.Context) error {
 		for range ch {
 		}
 	}()
-
 	jar, err := cookiejar.New(
 		&cookiejar.Options{
 			PublicSuffixList: publicsuffix.List,
@@ -162,27 +101,31 @@ func action(c *cli.Context) error {
 	}
 
 	apiClient := api.NewClient(
-		"https://"+c.String(flags.Hostname),
+		"https://"+c.String(flag.Hostname.Name),
 		sugar,
 		api.OptDoer(
 			&http.Client{
-				Timeout: c.Duration(flags.HTTPTimeout),
+				Timeout: c.Duration(flag.HTTPTimeout.Name),
 				Transport: &http.Transport{
-					ResponseHeaderTimeout: c.Duration(flags.HTTPResponseHeaderTimeout),
+					ResponseHeaderTimeout: c.Duration(flag.HTTPResponseHeaderTimeout.Name),
 				},
 				Jar: jar,
 			},
 		),
 	)
 
-	if err := apiClient.Login(ctx, c.String(flags.Username), c.String(flags.Password)); err != nil {
+	if err := apiClient.Login(
+		ctx,
+		c.String(flag.Username.Name),
+		c.String(flag.Password.Name),
+	); err != nil {
 		return err
 	}
 
 	wg, ctx := errgroup.WithContext(ctx)
 
-	loader := downloader.NewLoader(c.String(flags.Directory), apiClient, sugar)
-	for i := 0; i < c.Int(flags.NumThreads); i++ {
+	loader := downloader.NewLoader(c.String(flag.Directory.Name), apiClient, sugar)
+	for i := 0; i < c.Int(flag.NumThreads.Name); i++ {
 		wg.Go(
 			func() error {
 				return loader.Worker(ctx, ch)
