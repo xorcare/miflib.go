@@ -56,8 +56,11 @@ func (l *Loader) download(ctx context.Context, basepath string, bk book.Book) er
 		l.downloadAudiobook,
 		l.downloadBook,
 		l.downloadCover,
-		l.downloadDemo,
-		l.downloadPhotos,
+		// Demo files and photos of books are mostly information garbage that
+		// accumulates like snow as you download books for study, so I preferred
+		// to disable downloading this data.
+		// l.downloadDemo,
+		// l.downloadPhotos,
 	}
 
 	wg, ctx := errgroup.WithContext(ctx)
@@ -140,10 +143,14 @@ func (l *Loader) downloadAudiobook(ctx context.Context, basepath string, book bo
 	defer l.log.Infof("finishing downloading are audiobook for the book %q, ", book.Title)
 	basepath = path.Join(basepath, "audiobook")
 	for key, as := range book.Files.AudioBooks {
-		// The zip file contains all mp3 recordings together so there is
-		// no need to download everything together.
+		// OGG and MP3 recordings are compressed for web playback of books,
+		// I prefer higher-quality recordings that are stored in a zip archive.
 		if key == "mp3" && len(book.Files.AudioBooks["zip"]) > 0 {
 			l.log.Infof("skip mp3 because zip exists for the book %q", book.Title)
+			continue
+		}
+		if key == "ogg" && len(book.Files.AudioBooks["zip"]) > 0 {
+			l.log.Infof("skip ogg because zip exists for the book %q", book.Title)
 			continue
 		}
 		for _, address := range as {

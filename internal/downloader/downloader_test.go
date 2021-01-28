@@ -48,10 +48,6 @@ func TestLoader_downloadAudiobook(t *testing.T) {
 	amk.On("DownloadFile", ctx, "https://zip", "jedi/audiobook/zip/Джедайские техники.zip").Return(nil).Once()
 	amk.On("DownloadFile", ctx, "https://m4b", "jedi/audiobook/m4b/Джедайские техники.m4b").Return(nil).Once()
 
-	amk.On("DownloadFile", ctx, "https://ogg/0", "jedi/audiobook/ogg/Введение.ogg").Return(nil).Once()
-	amk.On("DownloadFile", ctx, "https://ogg/1", "jedi/audiobook/ogg/Глава 1.ogg").Return(nil).Once()
-	amk.On("DownloadFile", ctx, "https://ogg/2", "jedi/audiobook/ogg/Приложения.ogg").Return(nil).Once()
-
 	require.NoError(t, l.downloadAudiobook(ctx, "jedi", book.Book{
 		Title: "Джедайские техники\n\r\t!",
 		Files: book.Files{
@@ -308,12 +304,10 @@ func TestLoader_download(t *testing.T) {
 		log:  zap.NewNop().Sugar(),
 	}
 
-	amk.On("DownloadFile", ctxtest.Match, "https://photos/photos.png", "jedi/photos/photos.png").Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://cover/small.png", "jedi/small.png").Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://cover/large.png", "jedi/large.png").Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://zip", "jedi/audiobook/zip/Джедайские техники.zip").Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://pdf", "jedi/e-book/pdf/Джедайские техники.pdf").Return(nil).Once()
-	amk.On("DownloadFile", ctxtest.Match, "https://epub", "jedi/demo/epub/Джедайские техники.epub").Return(nil).Once()
 
 	amk.On("DownloadFile", ctxtest.Match, "https://fb2", "jedi/e-book/fb2/Джедайские техники.fb2").
 		Return(&api.Error{Code: 404}).Once()
@@ -379,12 +373,10 @@ func TestLoader_Worker(t *testing.T) {
 		log:  zap.NewNop().Sugar(),
 	}
 
-	amk.On("DownloadFile", ctxtest.Match, "https://photos/photos.png", filepath.Join(l.root, "00000 Джедайские техники/photos/photos.png")).Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://cover/small.png", filepath.Join(l.root, "00000 Джедайские техники/small.png")).Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://cover/large.png", filepath.Join(l.root, "00000 Джедайские техники/large.png")).Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://zip", filepath.Join(l.root, "00000 Джедайские техники/audiobook/zip/Джедайские техники.zip")).Return(nil).Once()
 	amk.On("DownloadFile", ctxtest.Match, "https://pdf", filepath.Join(l.root, "00000 Джедайские техники/e-book/pdf/Джедайские техники.pdf")).Return(nil).Once()
-	amk.On("DownloadFile", ctxtest.Match, "https://epub", filepath.Join(l.root, "00000 Джедайские техники/demo/epub/Джедайские техники.epub")).Return(nil).Once()
 
 	amk.On("DownloadFile", ctxtest.Match, "https://fb2", filepath.Join(l.root, "00000 Джедайские техники/e-book/fb2/Джедайские техники.fb2")).
 		Return(&api.Error{Code: 404}).Once()
